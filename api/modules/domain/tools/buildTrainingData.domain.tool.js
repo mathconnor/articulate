@@ -13,8 +13,10 @@ const buildTrainingData = (server, domainId, extraTrainingData, callback) => {
         }
 
         let entitiesCombinations = [];
-        if (results.entities.length > 0){
-            entitiesCombinations = GetEntitiesCombinations(results.entities, results.intents);
+        if (extraTrainingData){
+            if (results.entities.length > 0){
+                entitiesCombinations = GetEntitiesCombinations(results.entities, results.intents);
+            }
         }
 
         const common_examples = _.uniq(_.flatten(_.map(results.intents, (intent) => {
@@ -75,7 +77,7 @@ const buildTrainingData = (server, domainId, extraTrainingData, callback) => {
 
                     const newEntitiesList = [];
 
-                    intentExample.entities.forEach((tempEntity) => {
+                    entitiesList.forEach((tempEntity) => {
 
                         newEntitiesList.push({
                             start: tempEntity.start,

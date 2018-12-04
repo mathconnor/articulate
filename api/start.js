@@ -6,6 +6,7 @@ const Vision = require('vision');
 const HapiSwagger = require('hapi-swagger');
 const HapiSwaggerUI = require('hapi-swaggered-ui');
 const Pack = require('./package');
+const Ubiquity = require('./ubiquity');
 
 Server((err, server) => {
 
@@ -26,9 +27,9 @@ Server((err, server) => {
         documentationPage: false
     };
 
-    process.env.SWAGGER_SCHEMES ? swaggerOptions.schemes = [process.env.SWAGGER_SCHEMES] : null
-    process.env.SWAGGER_HOST ? swaggerOptions.host = process.env.SWAGGER_HOST : null
-    process.env.SWAGGER_BASE_PATH ? swaggerOptions.basePath = process.env.SWAGGER_BASE_PATH : null
+    process.env.SWAGGER_SCHEMES ? swaggerOptions.schemes = [process.env.SWAGGER_SCHEMES] : null;
+    process.env.SWAGGER_HOST ? swaggerOptions.host = process.env.SWAGGER_HOST : null;
+    process.env.SWAGGER_BASE_PATH ? swaggerOptions.basePath = process.env.SWAGGER_BASE_PATH : null;
     // We added in HapiSwaggerUI because HapiSwagger hadn't been updated and had an SSL bug.
     const swaggerUIOptions = {
         title: 'Articulate API Documentation',
@@ -42,12 +43,13 @@ Server((err, server) => {
     // We have to specify a swaggerEndpoint since we use hapi-swaggered-ui with hapi-swagger. It can't auto find the swagger.json
     // to work behind a reverse proxy path we need to build the endpoint from the basePath when it is provided.
     // All of this is specifically to get the swagger docs working.
-    process.env.SWAGGER_BASE_PATH ? swaggerUIOptions.swaggerEndpoint = process.env.SWAGGER_BASE_PATH + '/swagger.json' : swaggerUIOptions.swaggerEndpoint = '/swagger.json'
-    process.env.SWAGGER_BASE_PATH ? swaggerUIOptions.basePath = process.env.SWAGGER_BASE_PATH : null
+    process.env.SWAGGER_BASE_PATH ? swaggerUIOptions.swaggerEndpoint = process.env.SWAGGER_BASE_PATH + '/swagger.json' : swaggerUIOptions.swaggerEndpoint = '/swagger.json';
+    process.env.SWAGGER_BASE_PATH ? swaggerUIOptions.basePath = process.env.SWAGGER_BASE_PATH : null;
 
     server.register([
         Inert,
         Vision,
+        Ubiquity,
         { 'register': HapiSwagger, 'options': swaggerOptions },
         { 'register': HapiSwaggerUI, 'options': swaggerUIOptions }
     ], (err) => {

@@ -23,6 +23,7 @@ import {
   updateScenarioError,
   updateScenarioSuccess,
   updateWebhookError,
+  loadCurrentAgentStatus,
 } from '../App/actions';
 import {
   CREATE_INTENT,
@@ -43,13 +44,16 @@ import {
   loadWebhookSuccess,
   loadPostFormat,
   loadPostFormatError,
-  loadPostFormatSuccess
+  loadPostFormatSuccess,
+  loadSysEntitiesSucess
 } from './actions';
 import {
   LOAD_INTENT,
   LOAD_SCENARIO,
   LOAD_WEBHOOK,
   LOAD_POSTFORMAT,
+  LOAD_INTENT_SUCCESS,
+  FIND_SYS_ENTITES
 } from './constants';
 import {
   makeSelectIntentData,
@@ -60,6 +64,7 @@ import {
   makeSelectOldWebhookData,
   makeSelectPostFormatData,
 } from './selectors';
+import { SIGSYS } from 'constants';
 
 function* postWebhook(payload) {
   const { api, id, intentData } = payload;
@@ -246,6 +251,7 @@ export function* putIntent(payload) {
     if (!_.isEqual(intentData, oldIntentData)) {
       const { id, agent, domain, ...data } = intentData;
       const response = yield call(api.intent.putIntentId, { id, body: data });
+      yield call(loadCurrentAgentStatus, {id: agent.id});
     }
     yield put(updateIntentSuccess());
     if (oldScenarioData) {
@@ -373,6 +379,52 @@ export function* getPostFormat(payload) {
 }
 
 
+export function* getSysEntities(payload) {
+  const { api, id } = payload;
+  try {
+    const scenario = yield select(makeSelectScenarioData());
+    let foundSysEntities = [];
+
+    scenario.slots.forEach(slot => {
+      if (slot.entity !== null && slot.entity.indexOf('sys.') > -1) {
+        foundSysEntities.push(slot.entity);
+      }
+
+    });
+
+    let intentData = yield select(makeSelectIntentData());
+    intentData = Immutable.asMutable(intentData, { deep: true });
+
+    for (var i = 0; i < intentData.examples.length; i++) {
+      intentData.examples[i].entities = intentData.examples[i].entities.filter((ent) => {
+        return ent.entity.indexOf('sys.') < 0; //get rid of old sys entities found
+      });
+
+      if (foundSysEntities.length > 0) {
+        let example = intentData.examples[i];
+        const parseResult = yield call(api.agent.getAgentIdParse, { id: id, text: example.userSays, timezone: '' })
+        let results = parseResult.obj.result.results;
+        results.forEach((result) => {
+
+          let entitiesFound = result.entities;
+          entitiesFound.forEach((entity) => {
+
+            if (foundSysEntities.indexOf(entity.entity) > -1) {
+
+              intentData.examples[i].entities = [...intentData.examples[i].entities, { value: entity.value.value || entity.value.values[0].value, entity: entity.entity, start: entity.start, end: entity.end, extractor: 'system', entityId: 0 }];
+
+            }
+          })
+        })
+      }
+    }
+    yield put(loadSysEntitiesSucess(intentData));
+
+  } catch (error) {
+    console.log(error);
+  }
+}
+
 export function* loadWebhook() {
   const watcher = yield takeLatest(LOAD_WEBHOOK, getWebhook);
 
@@ -389,6 +441,10 @@ export function* loadPostFormatSaga() {
   yield cancel(watcher);
 }
 
+export function* findSysEntitiesSaga() {
+  const watcher = yield takeLatest(FIND_SYS_ENTITES, getSysEntities);
+
+}
 // Bootstrap sagas
 export default [
   createIntent,
@@ -399,5 +455,6 @@ export default [
   loadIntent,
   loadScenario,
   loadWebhook,
-  loadPostFormatSaga
+  loadPostFormatSaga,
+  findSysEntitiesSaga,
 ];
